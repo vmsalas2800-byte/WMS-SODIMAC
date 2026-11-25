@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WMS-SODIMAC | Módulo de Ubicación Sugerida (ERS v2.0)</title>
+  <style>
+    :root {
+      --sodimac-red: #D91E2A;
+      --sodimac-red-dark: #A8141E;
+      --navy: #0F172A;
+      --slate-900: #111827;
+      --slate-800: #1F2937;
+      --slate-700: #374151;
+      --slate-600: #4B5563;
+      --slate-200: #E5E7EB;
+      --slate-100: #F3F4F6;
+      --bg: #F8FAFC;
+      --white: #FFFFFF;
+      --green-bg: #DCFCE7;
+      --green-border: #15803D;
+      --green-text: #14532D;
+      --amber-bg: #FEF3C7;
+      --amber-border: #B45309;
+      --amber-text: #78350F;
+      --red-bg: #FEE2E2;
+      --red-border: #B91C1C;
+      --red-text: #7F1D1D;
+      --blue-bg: #DBEAFE;
+      --blue-border: #1D4ED8;
+      --blue-text: #1E3A8A;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--slate-900);
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Barra de control de prototipos ERS (se oculta para capturas) */
+    .ers-toolbar {
+      background: #090D16;
+      color: #F8FAFC;
+      padding: 8px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 2px solid var(--sodimac-red);
+      font-size: 12px;
+      z-index: 100;
+    }
+    .ers-toolbar.hidden { display: none; }
+    .ers-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .ers-pill {
+      background: #1E293B;
+      color: #E2E8F0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ers-pill:hover { background: #334155; }
+    .ers-pill.active {
+      background: var(--sodimac-red);
+      border-color: #FCA5A5;
+      color: #FFFFFF;
+    }
+    .btn-capture {
+      background: #F59E0B;
+      color: #111827;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-capture:hover { background: #D97706; color: #FFF; }
+
+    .restore-ers-btn {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(15, 23, 42, 0.88);
+      color: #FFF;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      cursor: pointer;
+      z-index: 200;
+      display: none;
+    }
+    .restore-ers-btn.visible { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* Encabezado institucional fijo (RNF-05 / Sección 3.1.1) */
+    .app-header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 4px solid var(--sodimac-red);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      background: var(--sodimac-red);
+      color: #FFF;
+      font-weight: 900;
+      padding: 6px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      font-size: 15px;
+    }
+    .brand-title h1 { font-size: 16px; font-weight: 700; }
+    .brand-title p { font-size: 12px; color: #CBD5E1; }
+
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .meta-chip {
+      background: #1E293B;
+      border: 1px solid #334155;
+      padding: 6px 10px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot-online {
+      width: 9px; height: 9px; border-radius: 50%; background: #22C55E; display: inline-block;
+    }
+
+    /* Barra de navegación por rol (RF-01) */
+    .role-nav {
+      background: var(--white);
+      border-bottom: 1px solid var(--slate-200);
+      padding: 8px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .nav-btn {
+      min-height: 48px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--slate-200);
+      background: var(--slate-100);
+      color: var(--slate-900);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn:hover { background: #E2E8F0; }
+    .nav-btn.active {
+      background: var(--navy);
+      color: var(--white);
+      border-color: var(--navy);
+    }
+
+    /* Contenedor principal */
+    .main-container {
+      max-width: 1220px;
+      width: 100%;
+      margin: 20px auto;
+      padding: 0 18px;
+      flex: 1;
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .screen-title-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .screen-title-bar h2 { font-size: 21px; font-weight: 800; color: var(--slate-900); }
+    .req-badge {
+      background: #E2E8F0;
+      color: #0F172A;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid #94A3B8;
+    }
+
+    /* Tarjetas, Grids y Controles táctiles >= 48px (RNF-05) */
+    .card {
+      background: var(--white);
+      border: 2px solid #CBD5E1;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: var(--navy);
+      border-bottom: 1px solid var(--slate-200);
+      padding-bottom: 8px;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: var(--slate-900);
+    }
+    .input, .select {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 2px solid #64748B;
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--slate-900);
+    }
+    .input:focus, .select:focus {
+      outline: 3px solid #2563EB;
+      border-color: #1D4ED8;
+    }
+    .input-barcode {
+      font-family: "Consolas", "Courier New", monospace;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: 0.5px;
+      background: #F8FAFC;
+    }
+
+    .btn {
+      min-height: 48px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 2px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary { background: var(--sodimac-red); color: #FFF; }
+    .btn-primary:hover { background: var(--sodimac-red-dark); }
+    .btn-success { background: #15803D; color: #FFF; }
+    .btn-success:hover { background: #166534; }
+    .btn-amber { background: #D97706; color: #FFF; }
+    .btn-amber:hover { background: #B45309; }
+    .btn-dark { background: var(--navy); color: #FFF; }
+    .btn-dark:hover { background: #1E293B; }
+    .btn-outline { background: #FFF; color: var(--slate-900); border-color: #475569; }
+    .btn-outline:hover { background: var(--slate-100); }
+    .btn-sm { min-height: 40px; padding: 6px 12px; font-size: 13px; }
+    .btn-block { width: 100%; }
+
+    /* Alertas con texto, color e icono simultáneo (RNF-05) */
+    .alert {
+      padding: 14px 16px;
+      border-radius: 8px;
+      border-left: 6px solid;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert-green { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+    .alert-amber { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+    .alert-red { background: var(--red-bg); border-color: var(--red-border); color: var(--red-text); }
+    .alert-blue { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue-text); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid;
+    }
+    .badge-green { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
+    .badge-amber { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-border); }
+    .badge-red { background: var(--red-bg); color: var(--red-text); border-color: var(--red-border); }
+    .badge-blue { background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-border); }
+    .badge-gray { background: #E5E7EB; color: #1F2937; border-color: #6B7280; }
+
+    /* Código de ubicación gigante (P-03, P-04, P-06) */
+    .location-hero {
+      background: var(--navy);
+      color: #FFFFFF;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      border: 3px solid #38BDF8;
+      margin-bottom: 16px;
+    }
+    .location-hero .label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #BAE6FD; }
+    .location-hero .code {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: clamp(22px, 4vw, 36px);
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      margin-top: 6px;
+      color: #FFFFFF;
+    }
+    .loc-part-card {
+      background: #F1F5F9;
+      border: 2px solid #94A3B8;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .loc-part-card span { display: block; font-size: 12px; font-weight: 700; color: var(--slate-600); text-transform: uppercase; }
+    .loc-part-card strong { font-size: 24px; color: var(--navy); }
+
+    /* Tablas */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid #CBD5E1; }
+    th { background: #F1F5F9; font-weight: 800; color: var(--navy); }
+    tr:hover td { background: #F8FAFC; }
+
+    /* Mapa digital de celdas (P-07) */
+    .rack-grid {
+      display: grid;
+      grid-template-columns: 90px repeat(4, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+    .rack-level-label {
+      font-weight: 800;
+      font-size: 13px;
+      background: #E2E8F0;
+      padding: 12px 8px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .cell-box {
+      min-height: 68px;
+      border-radius: 8px;
+      padding: 8px;
+      border: 2px solid;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .cell-box.selected { outline: 4px solid #0F172A; }
+    .cell-libre { background: #DCFCE7; border-color: #15803D; color: #14532D; }
+    .cell-reservada { background: #DBEAFE; border-color: #1D4ED8; color: #1E3A8A; }
+    .cell-ocupada { background: #E5E7EB; border-color: #4B5563; color: #111827; }
+    .cell-bloqueada { background: #FEE2E2; border-color: #B91C1C; color: #7F1D1D; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .tab-btn {
+      min-height: 48px;
+      padding: 8px 16px;
+      border: 2px solid #94A3B8;
+      background: #FFF;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--sodimac-red); color: #FFF; border-color: var(--sodimac-red); }
+
+    .login-box { max-width: 460px; margin: 24px auto; }
+    .footer-bar {
+      background: #E2E8F0;
+      color: #334155;
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROL PARA CAPTURAS DE LA ERS -->
+  <div class="ers-toolbar" id="ersToolbar">
+    <div class="ers-pills" id="ersPills">
+      <strong style="margin-right:6px;color:#FBBF24;">Prototipos ERS (P-01 a P-11):</strong>
+    </div>
+    <button class="btn-capture" onclick="toggleCaptureMode()">Ocultar barra ERS (Modo Captura)</button>
+  </div>
+  <button class="restore-ers-btn" id="restoreErsBtn" onclick="toggleCaptureMode()">Mostrar selector P-01..P-11 (ESC)</button>
+
+  <!-- ENCABEZADO COMÚN DE APLICACIÓN (Sección 3.1.1) -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-logo">SODIMAC</div>
+      <div class="brand-title">
+        <h1>WMS-SODIMAC · Ubicación Sugerida y Control de Almacenamiento</h1>
+        <p>CD Piloto Lima · Estándar PAS-XX-RACK-XX-NIV-XX-POS-X</p>
+      </div>
+    </div>
+    <div class="header-meta" id="headerMeta">
+      <span class="meta-chip"><span class="dot-online"></span> En línea (TLS 1.3)</span>
+      <span class="meta-chip" id="metaUser">Usuario: <strong>c.dioses</strong></span>
+      <span class="meta-chip" id="metaRole">Perfil: <strong>Operario de Recepción</strong></span>
+      <span class="meta-chip">Turno: <strong>Mañana</strong></span>
+      <button class="btn btn-outline btn-sm" style="color:#FFF;border-color:#94A3B8;background:#1E293B;" onclick="goScreen('P-01')">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <!-- MENÚ SEGÚN MATRIZ DE ACCESO (Tabla 10 - RF-01) -->
+  <nav class="role-nav" id="roleNav"></nav>
+
+  <main class="main-container">
+
+    <!-- ==================== P-01: INICIO DE SESIÓN ==================== -->
+    <section class="screen active" id="screen-P-01">
+      <div class="login-box card">
+        <div style="text-align:center;margin-bottom:14px;">
+          <span class="req-badge">P-01 · RF-01 / RNF-04</span>
+          <h2 style="margin-top:8px;font-size:22px;">Inicio de Sesión Corporativo</h2>
+          <p style="font-size:13px;color:var(--slate-600);">Autenticación mediante LDAP / Active Directory</p>
+        </div>
+
+        <div id="ldapBanner" class="alert alert-green">
+          <span>✔</span>
+          <div>Directorio Corporativo LDAP / Active Directory: <strong>En línea</strong></div>
+        </div>
+
+        <div id="loginFeedback"></div>
+
+        <div class="form-group">
+          <label for="loginUser">Usuario corporativo</label>
+          <input id="loginUser" class="input" type="text" value="c.dioses" placeholder="Ej. c.dioses" />
+        </div>
+        <div class="form-group">
+          <label for="loginPass">Contraseña</label>
+          <input id="loginPass" class="input" type="password" value="••••••••••••" />
+        </div>
+
+        <div class="form-group">
+          <label for="loginRoleSelect">Perfil asignado por grupo AD (simulación de rol)</label>
+          <select id="loginRoleSelect" class="select">
+            <option value="Operario de Recepción">Operario de Recepción (P-02 a P-06)</option>
+            <option value="Operario de Turno">Operario de Turno – Despacho/Reposición (P-06 solo lectura)</option>
+            <option value="Jefe de Almacén">Jefe de Almacén (P-06 a P-10)</option>
+            <option value="Administrador TI">Administrador TI (P-11)</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary btn-block" onclick="handleLogin()">Ingresar al Módulo</button>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" style="flex:1;" onclick="simulateFailedLogin()">Simular fallo (<span id="failCount">0</span>/5)</button>
+          <button class="btn btn-outline btn-sm" style="flex:1;" onclick="toggleContingency()">Alternar Contingencia (FA-01)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-02: RECEPCIÓN E IDENTIFICACIÓN DE SKU ==================== -->
+    <section class="screen" id="screen-P-02">
+      <div class="screen-title-bar">
+        <h2>P-02 · Recepción e Identificación de SKU</h2>
+        <span class="req-badge">RF-02 · RN-05 · RNF-05 (Modo HID)</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>1. Lectura de mercadería en recepción</h3>
+          <div class="form-group">
+            <label for="ocSelect">Orden de Compra / Aviso de Despacho (ERP – IS-02)</label>
+            <select id="ocSelect" class="select">
+              <option>OC-2026-08412 | Proveedor: Cerámicos Lima S.A.C.</option>
+              <option>OC-2026-08415 | Proveedor: Aceros del Perú S.A.</option>
+              <option>OC-2026-08419 | Proveedor: Herramientas Industriales S.R.L.</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="skuInput">Escanear código SKU (Foco automático HID)</label>
+            <input id="skuInput" class="input input-barcode" type="text" value="SKU-409821" onkeydown="if(event.key==='Enter') scanSku()" />
+          </div>
+
+          <div class="form-group">
+            <label for="qtyInput">Cantidad recibida (bultos / unidades de manejo)</label>
+            <input id="qtyInput" class="input" type="number" value="12" min="1" />
+          </div>
+
+          <button class="btn btn-dark btn-block" onclick="scanSku()">Consultar Maestro ERP y Mapa Digital</button>
+
+          <div style="margin-top:12px;">
+            <p style="font-size:12px;font-weight:700;color:var(--slate-600);margin-bottom:6px;">Casos de prueba rápidos (RF-02 / RN-05):</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <button class="btn btn-outline btn-sm" onclick="presetSku('SKU-409821')">SKU Nuevo Pesado (28 kg)</button>
+              <button class="btn btn-outline btn-sm" onclick="presetSku('SKU-102934')">Sin Datos Maestros (RN-05)</button>
+              <button class="btn btn-outline btn-sm" onclick="presetSku('SKU-774120')">Con Ubicación Vigente</button>
+              <button class="btn btn-outline btn-sm" onclick="presetSku('SKU-999999')">Inexistente en ERP</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="skuResultCard">
+          <h3>2. Ficha del SKU y Resultado de Identificación</h3>
+          <div class="alert alert-blue">
+            <span>ℹ</span>
+            <div><strong>SKU nuevo sin historial de ubicación:</strong> Registrado en estado <strong>«En recepción»</strong>. Listo para calcular ubicación sugerida.</div>
+          </div>
+          <table>
+            <tr><th>Código SKU</th><td><strong>SKU-409821</strong></td></tr>
+            <tr><th>Descripción</th><td>Porcelanato Gris Antideslizante 60x60 cm (Caja x 4 pzas)</td></tr>
+            <tr><th>Categoría / Clase ABC</th><td>Acabados · <span class="badge badge-blue">Clase A (Alta rotación)</span></td></tr>
+            <tr><th>Peso unitario / bulto</th><td><strong>28.0 kg</strong> <span class="badge badge-amber">⚠ Ítem pesado (&gt; 25 kg)</span></td></tr>
+            <tr><th>Dimensiones (L × A × H)</th><td>62 × 62 × 18 cm</td></tr>
+            <tr><th>Estado actual</th><td><span class="badge badge-amber">En recepción</span></td></tr>
+          </table>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary btn-block" onclick="goScreen('P-03')">Calcular Ubicación Sugerida (RF-03) →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-03: UBICACIÓN SUGERIDA ==================== -->
+    <section class="screen" id="screen-P-03">
+      <div class="screen-title-bar">
+        <h2>P-03 · Ubicación Física Sugerida</h2>
+        <span class="req-badge">RF-03 · RN-01 / RN-02 / RN-03 · RNF-03</span>
+      </div>
+
+      <div id="p03NormalView">
+        <div class="alert alert-green">
+          <span>✔</span>
+          <div>Celda óptima calculada en <strong>0.38 s</strong> y reservada transaccionalmente (ACID) para <strong>SKU-409821 (12 bultos)</strong>.</div>
+        </div>
+
+        <div class="location-hero">
+          <div class="label">Código de Ubicación Asignado (Diríjase a esta celda)</div>
+          <div class="code" id="suggestedCodeText">PAS-04-RACK-02-NIV-01-POS-B</div>
+        </div>
+
+        <div class="grid-4" style="margin-bottom:16px;">
+          <div class="loc-part-card"><span>Pasillo</span><strong id="partPas">04</strong></div>
+          <div class="loc-part-card"><span>Rack</span><strong id="partRack">02</strong></div>
+          <div class="loc-part-card"><span>Nivel</span><strong id="partNiv">01</strong></div>
+          <div class="loc-part-card"><span>Posición</span><strong id="partPos">B</strong></div>
+        </div>
+
+        <div class="card">
+          <h3>Criterios aplicados por el Motor de Reglas (RN-01)</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span class="badge badge-amber">⚖ Regla 1 (Peso): Ítem pesado (28 kg) → Nivel inferior permitido (NIV-01)</span>
+              <span class="badge badge-green">✔ Regla 2 (Disponibilidad): Capacidad libre verificada</span>
+              <span class="badge badge-blue">★ Regla 3 (ABC): Clase A → Zona cercana a despacho</span>
+            </div>
+            <span class="badge badge-red" style="font-size:14px;padding:8px 14px;">⏱ Reserva vigente: <span id="reserveTimer">14:52</span></span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <button class="btn btn-success" onclick="goScreen('P-04')">✔ Ir a Confirmar Almacenamiento (RF-04)</button>
+          <button class="btn btn-amber" onclick="goScreen('P-05')">⚠ Reportar Incidencia / Celda Ocupada (RN-04)</button>
+        </div>
+      </div>
+
+      <!-- Escenario RN-03: Zona de espera -->
+      <div id="p03WaitZoneView" style="display:none;">
+        <div class="alert alert-amber">
+          <span>⚠</span>
+          <div><strong>Sin celda válida disponible (RN-03):</strong> Ninguna celda en NIV-01/NIV-02 cuenta con capacidad libre para 28 kg. El sistema no fuerza una ubicación insegura.</div>
+        </div>
+        <div class="location-hero" style="border-color:#F59E0B;background:#78350F;">
+          <div class="label" style="color:#FDE68A;">Trasladar temporalmente a Zona de Espera</div>
+          <div class="code">ZE-01 (Recepción Pesados)</div>
+        </div>
+        <div class="card">
+          <p><strong>Estado asignado:</strong> <span class="badge badge-amber">En espera de ubicación</span></p>
+          <p style="margin-top:8px;">Se ha generado una alerta prioritaria en la bandeja del <strong>Jefe de Almacén (P-09)</strong> para habilitar o autorizar una celda antes del cierre del turno.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;text-align:right;">
+        <button class="btn btn-outline btn-sm" onclick="toggleWaitZoneDemo()">Alternar vista: Sugerencia Normal vs. Zona de Espera (RN-03)</button>
+      </div>
+    </section>
+
+    <!-- ==================== P-04: CONFIRMACIÓN DE ALMACENAMIENTO ==================== -->
+    <section class="screen" id="screen-P-04">
+      <div class="screen-title-bar">
+        <h2>P-04 · Confirmación de Almacenamiento</h2>
+        <span class="req-badge">RF-04 · RN-04 · RNF-01 (≤ 2 s)</span>
+      </div>
+
+      <div id="confirmResultBanner"></div>
+
+      <div class="card">
+        <h3>Validación física en el pasillo</h3>
+        <div style="background:#F1F5F9;padding:14px;border-radius:8px;border:2px solid #94A3B8;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--slate-600);">CELDA RESERVADA ESPERADA:</div>
+          <div style="font-family:Consolas,monospace;font-size:24px;font-weight:900;color:var(--navy);" id="expectedCellLabel">PAS-04-RACK-02-NIV-01-POS-B</div>
+          <div style="font-size:14px;margin-top:4px;">SKU: <strong>SKU-409821</strong> · Porcelanato Gris 60x60 · Cantidad: <strong>12 bultos</strong></div>
+        </div>
+
+        <div class="form-group">
+          <label for="rackScanInput">Escanear etiqueta de código de barras del rack (HID)</label>
+          <input id="rackScanInput" class="input input-barcode" type="text" value="PAS-04-RACK-02-NIV-01-POS-B" />
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+          <button class="btn btn-success" style="flex:2;" onclick="confirmStorage('scan')">✔ Confirmar Almacenamiento</button>
+          <button class="btn btn-amber" style="flex:1;" onclick="goScreen('P-05')">⚠ Registrar Excepción (RN-04)</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="simulateWrongRack()">Simular escaneo de rack equivocado (EX-02)</button>
+          <button class="btn btn-outline btn-sm" onclick="confirmStorage('button')">Simular confirmación por botón (sin escáner)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-05: REGISTRO DE EXCEPCIONES ==================== -->
+    <section class="screen" id="screen-P-05">
+      <div class="screen-title-bar">
+        <h2>P-05 · Registro de Excepciones en Almacenamiento</h2>
+        <span class="req-badge">RF-04 · RN-04</span>
+      </div>
+
+      <div id="exFeedback"></div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="border:none;margin:0;padding:0;">Detalle de incidencia operativa</h3>
+          <span class="badge badge-amber" style="font-size:13px;" id="recalcBadge">Recálculo 1 de 3</span>
+        </div>
+
+        <div class="form-group">
+          <label for="exType">Tipo de incidencia (RN-04)</label>
+          <select id="exType" class="select">
+            <option value="bloqueo">Celda sugerida ocupada o dañada al llegar (bloquear y recalcular)</option>
+            <option value="alternativa">Producto colocado en otra posición libre (ubicación alternativa)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="exObs">Observación sobre la celda sugerida (PAS-04-RACK-02-NIV-01-POS-B)</label>
+          <input id="exObs" class="input" type="text" value="Base metálica de rack golpeada por montacargas; requiere revisión." />
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="altCellInput">Código de ubicación alternativa (solo si aplica)</label>
+            <input id="altCellInput" class="input input-barcode" type="text" value="PAS-04-RACK-03-NIV-01-POS-A" />
+          </div>
+          <div class="form-group">
+            <label for="exReason">Motivo obligatorio *</label>
+            <input id="exReason" class="input" type="text" value="Celda contigua libre en NIV-01 cumple peso > 25 kg" />
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <button class="btn btn-amber" style="flex:1;" onclick="recalculateException()">↻ Bloquear celda y recalcular sugerencia</button>
+          <button class="btn btn-dark" style="flex:1;" onclick="confirmAlternativeCell()">✔ Confirmar ubicación alternativa</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-06: CONSULTA DE UBICACIÓN ==================== -->
+    <section class="screen" id="screen-P-06">
+      <div class="screen-title-bar">
+        <h2>P-06 · Consulta de Ubicación de SKU por Turno</h2>
+        <span class="req-badge">RF-05 · Solo Lectura · RNF-01 (&lt; 2 s)</span>
+      </div>
+
+      <div class="grid-2" style="grid-template-columns: 1.5fr 1fr;">
+        <div class="card">
+          <div class="tabs">
+            <button class="tab-btn active" onclick="setSearchTab(this, 'sku')">Por SKU</button>
+            <button class="tab-btn" onclick="setSearchTab(this, 'desc')">Por Descripción</button>
+            <button class="tab-btn" onclick="setSearchTab(this, 'cat')">Por Categoría</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <input id="lookupInput" class="input" type="text" placeholder="Ingrese código SKU, descripción o categoría..." oninput="filterLookup()" />
+            <button class="btn btn-primary" onclick="filterLookup()">Buscar</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Descripción</th>
+                  <th>Ubicación</th>
+                  <th>Estado</th>
+                  <th>Última confirmación</th>
+                </tr>
+              </thead>
+              <tbody id="lookupTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" id="lookupDetailCard">
+          <h3>Detalle de Ubicación Seleccionada</h3>
+          <div class="location-hero" style="padding:14px;">
+            <div class="label">Ubicación Física Actual</div>
+            <div class="code" style="font-size:20px;" id="detCode">PAS-04-RACK-02-NIV-01-POS-B</div>
+          </div>
+          <table>
+            <tr><th>SKU</th><td id="detSku"><strong>SKU-409821</strong></td></tr>
+            <tr><th>Descripción</th><td id="detDesc">Porcelanato Gris 60x60 cm</td></tr>
+            <tr><th>Categoría / ABC</th><td id="detCat">Acabados · Clase A</td></tr>
+            <tr><th>Desglose</th><td id="detParts">Pasillo 04 · Rack 02 · Nivel 01 · Pos B</td></tr>
+            <tr><th>Estado</th><td id="detStatus"><span class="badge badge-green">✔ Ubicado</span></td></tr>
+            <tr><th>Confirmado por</th><td id="detAudit">c.dioses · 25/11/2026 08:14 (Turno Mañana)</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-07: MAPA DIGITAL Y BLOQUEO DE CELDAS ==================== -->
+    <section class="screen" id="screen-P-07">
+      <div class="screen-title-bar">
+        <h2>P-07 · Administración del Mapa Digital y Bloqueo de Celdas</h2>
+        <span class="req-badge">RF-06 · Perfil: Jefe de Almacén</span>
+      </div>
+
+      <div class="grid-2" style="grid-template-columns: 1.5fr 1fr;">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+            <h3 style="border:none;margin:0;padding:0;">Pasillo 04 – Rack 02 (Zona A · Cercana a Despacho)</h3>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span class="badge badge-green">Libre</span>
+              <span class="badge badge-blue">Reservada</span>
+              <span class="badge badge-gray">Ocupada</span>
+              <span class="badge badge-red">Bloqueada</span>
+            </div>
+          </div>
+
+          <div class="rack-grid" id="rackGrid"></div>
+        </div>
+
+        <div class="card">
+          <h3>Gestión de Celda Seleccionada</h3>
+          <div id="mapFeedback"></div>
+          <div class="form-group">
+            <label>Código de celda</label>
+            <input id="cellCodeEdit" class="input input-barcode" type="text" value="PAS-04-RACK-02-NIV-01-POS-A" />
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Capacidad peso (kg)</label>
+              <input id="cellWeightEdit" class="input" type="number" value="500" />
+            </div>
+            <div class="form-group">
+              <label>Estado actual</label>
+              <input id="cellStateEdit" class="input" type="text" value="Libre" readonly style="background:#F1F5F9;" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Motivo obligatorio para bloqueo / baja *</label>
+            <input id="cellReasonEdit" class="input" type="text" placeholder="Ej. Mantenimiento preventivo de estructura" />
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn btn-amber" style="flex:1;" onclick="toggleBlockSelectedCell()">Bloquear / Desbloquear</button>
+            <button class="btn btn-primary" style="flex:1;" onclick="deleteSelectedCell()">Dar de baja celda</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-08: PARÁMETROS DE REGLAS DE ACOMODO ==================== -->
+    <section class="screen" id="screen-P-08">
+      <div class="screen-title-bar">
+        <h2>P-08 · Parámetros de Reglas de Acomodo</h2>
+        <span class="req-badge">RF-06 · RN-01 / RN-02 · Perfil: Jefe de Almacén</span>
+      </div>
+
+      <div id="paramFeedback"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Parámetros operativos y seguridad (RN-01 / RN-02)</h3>
+          <div class="form-group">
+            <label for="paramWeight">Umbral de ítem pesado (kg)</label>
+            <input id="paramWeight" class="input" type="number" value="25" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Niveles permitidos para ítems pesados</label>
+            <div style="display:flex;gap:14px;padding-top:4px;">
+              <label style="font-weight:600;"><input type="checkbox" checked /> NIV-01</label>
+              <label style="font-weight:600;"><input type="checkbox" checked /> NIV-02</label>
+              <label style="font-weight:600;"><input type="checkbox" /> NIV-03</label>
+              <label style="font-weight:600;"><input type="checkbox" /> NIV-04</label>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="paramReserve">Vencimiento de reserva (min)</label>
+              <input id="paramReserve" class="input" type="number" value="15" min="1" />
+            </div>
+            <div class="form-group">
+              <label for="paramPareto">Periodo reclasificación ABC (días)</label>
+              <input id="paramPareto" class="input" type="number" value="30" min="1" />
+            </div>
+          </div>
+          <p style="font-size:12px;color:var(--slate-600);margin-bottom:12px;">Criterio Pareto RN-02: <strong>A</strong> = 80 % acumulado · <strong>B</strong> = 15 % · <strong>C</strong> = 5 % restante.</p>
+          <button class="btn btn-success btn-block" onclick="saveParams()">✔ Guardar Parámetros Vigentes</button>
+        </div>
+
+        <div class="card">
+          <h3>Clase ABC inicial por categoría (SKU nuevos)</h3>
+          <table>
+            <thead>
+              <tr><th>Categoría ERP</th><th>¿Categoría pesada?</th><th>Clase ABC inicial</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Patio de construcción</td><td>Sí (NIV-01/02)</td><td><select class="select" style="min-height:40px;"><option selected>Clase A</option><option>Clase B</option><option>Clase C</option></select></td></tr>
+              <tr><td>Ferretería</td><td>No</td><td><select class="select" style="min-height:40px;"><option selected>Clase A</option><option>Clase B</option><option>Clase C</option></select></td></tr>
+              <tr><td>Acabados</td><td>Sí (NIV-01/02)</td><td><select class="select" style="min-height:40px;"><option>Clase A</option><option selected>Clase B</option><option>Clase C</option></select></td></tr>
+              <tr><td>Electricidad</td><td>No</td><td><select class="select" style="min-height:40px;"><option>Clase A</option><option selected>Clase B</option><option>Clase C</option></select></td></tr>
+              <tr><td>Equipamiento y jardín</td><td>No</td><td><select class="select" style="min-height:40px;"><option>Clase A</option><option>Clase B</option><option selected>Clase C</option></select></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-09: BANDEJA DE ALERTAS DE ZONA DE ESPERA ==================== -->
+    <section class="screen" id="screen-P-09">
+      <div class="screen-title-bar">
+        <h2>P-09 · Bandeja de Alertas (Zona de Espera y Revisiones)</h2>
+        <span class="req-badge">RF-06 · RN-03 / RN-04 · Perfil: Jefe de Almacén</span>
+      </div>
+
+      <div id="alertActionFeedback"></div>
+
+      <div class="card">
+        <h3>1. SKU en Zona de Espera pendientes de resolución antes de cierre de turno (RN-03)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Descripción</th>
+                <th>Zona</th>
+                <th>Turno / Antigüedad</th>
+                <th>Motivo</th>
+                <th>Acciones de resolución</th>
+              </tr>
+            </thead>
+            <tbody id="waitZoneTable">
+              <tr id="wz-row-1">
+                <td><strong>SKU-550192</strong></td>
+                <td>Cemento Sol Tipo I 42.5 kg (40 bolsas)</td>
+                <td><span class="badge badge-amber">ZE-01</span></td>
+                <td>Mañana · 45 min</td>
+                <td>Sin celda libre en NIV-01/02</td>
+                <td>
+                  <button class="btn btn-success btn-sm" onclick="resolveWaitZone('wz-row-1', 'SKU-550192', 'PAS-01-RACK-01-NIV-01-POS-A')">Autorizar celda</button>
+                </td>
+              </tr>
+              <tr id="wz-row-2">
+                <td><strong>SKU-618304</strong></td>
+                <td>Varilla Fierro Corrugado 1/2" (25 und)</td>
+                <td><span class="badge badge-amber">ZE-02</span></td>
+                <td>Mañana · 1 h 10 min</td>
+                <td>3 recálculos sin éxito (RN-04)</td>
+                <td>
+                  <button class="btn btn-success btn-sm" onclick="resolveWaitZone('wz-row-2', 'SKU-618304', 'PAS-01-RACK-02-NIV-01-POS-C')">Liberar y asignar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>2. Ubicaciones alternativas declaradas por operarios para revisión (RN-04)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Sugerida</th>
+                <th>Alternativa confirmada</th>
+                <th>Motivo registrado</th>
+                <th>Operario</th>
+                <th>Revisión</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="alt-row-1">
+                <td><strong>SKU-409821</strong></td>
+                <td>PAS-04-RACK-02-NIV-01-POS-B</td>
+                <td><strong>PAS-04-RACK-03-NIV-01-POS-A</strong></td>
+                <td>Celda contigua libre en NIV-01 cumple peso &gt; 25 kg</td>
+                <td>c.dioses</td>
+                <td id="alt-status-1">
+                  <button class="btn btn-dark btn-sm" onclick="reviewAlt('alt-status-1', 'Conforme')">Conforme</button>
+                  <button class="btn btn-outline btn-sm" onclick="reviewAlt('alt-status-1', 'Observada')">Observada</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-10: REPORTES DE TRAZABILIDAD ==================== -->
+    <section class="screen" id="screen-P-10">
+      <div class="screen-title-bar">
+        <h2>P-10 · Reportes de Trazabilidad y Auditoría de Inventario</h2>
+        <span class="req-badge">RF-07 · R-01 a R-06 · PDF y Excel (.xlsx)</span>
+      </div>
+
+      <div id="reportFeedback"></div>
+
+      <div class="grid-2" style="grid-template-columns: 300px 1fr;">
+        <div class="card">
+          <h3>Seleccionar Reporte</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;" id="reportSelectorList">
+            <button class="btn btn-dark btn-block" style="justify-content:flex-start;" onclick="selectReport('R-01', this)">R-01 · Tiempos de acomodo</button>
+            <button class="btn btn-outline btn-block" style="justify-content:flex-start;" onclick="selectReport('R-02', this)">R-02 · Ocupación de racks</button>
+            <button class="btn btn-outline btn-block" style="justify-content:flex-start;" onclick="selectReport('R-03', this)">R-03 · Pendientes y ZE-XX</button>
+            <button class="btn btn-outline btn-block" style="justify-content:flex-start;" onclick="selectReport('R-04', this)">R-04 · Bitácora y excepciones</button>
+            <button class="btn btn-outline btn-block" style="justify-content:flex-start;" onclick="selectReport('R-05', this)">R-05 · Datos provisionales</button>
+            <button class="btn btn-outline btn-block" style="justify-content:flex-start;" onclick="selectReport('R-06', this)">R-06 · Desalineados ABC</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Filtros y Vista Previa</h3>
+          <div class="grid-4" style="margin-bottom:14px;">
+            <div class="form-group" style="margin:0;">
+              <label>Desde</label>
+              <input class="input" type="date" value="2026-11-01" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Hasta</label>
+              <input class="input" type="date" value="2026-11-25" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Turno</label>
+              <select class="select"><option>Todos los turnos</option><option>Mañana</option><option>Tarde</option><option>Noche</option></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Zona</label>
+              <select class="select"><option>Todas las zonas</option><option>Zona A (Despacho)</option><option>Zona B</option><option>Zona C</option></select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="exportReport('PDF')">Exportar PDF</button>
+            <button class="btn btn-success" onclick="exportReport('Excel (.xlsx)')">Exportar Excel (.xlsx)</button>
+          </div>
+
+          <div class="table-wrap" id="reportPreviewContainer"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== P-11: GESTIÓN DE USUARIOS Y ROLES ==================== -->
+    <section class="screen" id="screen-P-11">
+      <div class="screen-title-bar">
+        <h2>P-11 · Gestión de Usuarios, Roles y Cuentas</h2>
+        <span class="req-badge">RF-01 · RNF-04 · Perfil: Administrador TI</span>
+      </div>
+
+      <div id="userAdminFeedback"></div>
+
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;margin-bottom:14px;">
+          <input id="userSearchInput" class="input" style="max-width:340px;" type="text" placeholder="Buscar usuario o nombre..." oninput="renderUsers()" />
+          <button class="btn btn-primary" onclick="addDemoUser()">+ Nuevo Usuario / Contingencia</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Nombre completo</th>
+                <th>Rol asignado</th>
+                <th>Autenticación</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-bar">
+    WMS-SODIMAC · Módulo de Ubicación Sugerida y Control de Almacenamiento · Especificación de Requerimientos MCVS-UE-II21-3 (v2.0) · Grupo 4 BYTES
+  </footer>
+
+  <script>
+    const SCREENS = [
+      { id: 'P-01', label: 'P-01 Login' },
+      { id: 'P-02', label: 'P-02 Recepción' },
+      { id: 'P-03', label: 'P-03 Sugerida' },
+      { id: 'P-04', label: 'P-04 Confirmar' },
+      { id: 'P-05', label: 'P-05 Excepciones' },
+      { id: 'P-06', label: 'P-06 Consulta' },
+      { id: 'P-07', label: 'P-07 Mapa Digital' },
+      { id: 'P-08', label: 'P-08 Parámetros' },
+      { id: 'P-09', label: 'P-09 Alertas ZE' },
+      { id: 'P-10', label: 'P-10 Reportes' },
+      { id: 'P-11', label: 'P-11 Usuarios' }
+    ];
+
+    const ROLE_PERMISSIONS = {
+      'Operario de Recepción': ['P-02', 'P-03', 'P-04', 'P-05', 'P-06'],
+      'Operario de Turno': ['P-06'],
+      'Jefe de Almacén': ['P-06', 'P-07', 'P-08', 'P-09', 'P-10'],
+      'Administrador TI': ['P-11']
+    };
+
+    let currentRole = 'Operario de Recepción';
+    let failedAttempts = 0;
+    let contingencyMode = false;
+    let recalcStep = 1;
+    let selectedCellId = 'PAS-04-RACK-02-NIV-01-POS-A';
+
+    const lookupData = [
+      { sku: 'SKU-409821', desc: 'Porcelanato Gris 60x60 cm', cat: 'Acabados', abc: 'A', loc: 'PAS-04-RACK-02-NIV-01-POS-B', parts: 'Pasillo 04 · Rack 02 · Nivel 01 · Pos B', status: 'Ubicado', audit: 'c.dioses · 25/11/2026 08:14 (Turno Mañana)' },
+      { sku: 'SKU-774120', desc: 'Taladro Percutor Inalámbrico 20V', cat: 'Herramientas', abc: 'A', loc: 'PAS-02-RACK-04-NIV-02-POS-A', parts: 'Pasillo 02 · Rack 04 · Nivel 02 · Pos A', status: 'Ubicado', audit: 'l.munoz · 24/11/2026 21:40 (Turno Noche)' },
+      { sku: 'SKU-330912', desc: 'Cable Eléctrico THW 12 AWG 100m', cat: 'Electricidad', abc: 'B', loc: 'PAS-03-RACK-01-NIV-03-POS-C', parts: 'Pasillo 03 · Rack 01 · Nivel 03 · Pos C', status: 'En recepción', audit: 'Pendiente de confirmación física' },
+      { sku: 'SKU-550192', desc: 'Cemento Sol Tipo I 42.5 kg', cat: 'Patio de construcción', abc: 'A', loc: 'ZE-01', parts: 'Zona de Espera ZE-01', status: 'En espera de ubicación', audit: 'Alerta enviada a Jefe de Almacén (RN-03)' }
+    ];
+
+    const rackCells = [
+      { code: 'PAS-04-RACK-02-NIV-04-POS-A', niv: 'NIV-04', pos: 'POS-A', state: 'libre', sku: '—', cap: '200 kg' },
+      { code: 'PAS-04-RACK-02-NIV-04-POS-B', niv: 'NIV-04', pos: 'POS-B', state: 'ocupada', sku: 'SKU-11204', cap: '200 kg' },
+      { code: 'PAS-04-RACK-02-NIV-04-POS-C', niv: 'NIV-04', pos: 'POS-C', state: 'libre', sku: '—', cap: '200 kg' },
+      { code: 'PAS-04-RACK-02-NIV-04-POS-D', niv: 'NIV-04', pos: 'POS-D', state: 'bloqueada', sku: 'Mant.', cap: '200 kg' },
+
+      { code: 'PAS-04-RACK-02-NIV-03-POS-A', niv: 'NIV-03', pos: 'POS-A', state: 'ocupada', sku: 'SKU-88310', cap: '300 kg' },
+      { code: 'PAS-04-RACK-02-NIV-03-POS-B', niv: 'NIV-03', pos: 'POS-B', state: 'libre', sku: '—', cap: '300 kg' },
+      { code: 'PAS-04-RACK-02-NIV-03-POS-C', niv: 'NIV-03', pos: 'POS-C', state: 'libre', sku: '—', cap: '300 kg' },
+      { code: 'PAS-04-RACK-02-NIV-03-POS-D', niv: 'NIV-03', pos: 'POS-D', state: 'ocupada', sku: 'SKU-44109', cap: '300 kg' },
+
+      { code: 'PAS-04-RACK-02-NIV-02-POS-A', niv: 'NIV-02', pos: 'POS-A', state: 'ocupada', sku: 'SKU-20911', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-02-POS-B', niv: 'NIV-02', pos: 'POS-B', state: 'libre', sku: '—', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-02-POS-C', niv: 'NIV-02', pos: 'POS-C', state: 'ocupada', sku: 'SKU-30198', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-02-POS-D', niv: 'NIV-02', pos: 'POS-D', state: 'libre', sku: '—', cap: '500 kg' },
+
+      { code: 'PAS-04-RACK-02-NIV-01-POS-A', niv: 'NIV-01', pos: 'POS-A', state: 'libre', sku: '—', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-01-POS-B', niv: 'NIV-01', pos: 'POS-B', state: 'reservada', sku: 'SKU-409821', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-01-POS-C', niv: 'NIV-01', pos: 'POS-C', state: 'ocupada', sku: 'SKU-90211', cap: '500 kg' },
+      { code: 'PAS-04-RACK-02-NIV-01-POS-D', niv: 'NIV-01', pos: 'POS-D', state: 'libre', sku: '—', cap: '500 kg' }
+    ];
+
+    let usersList = [
+      { user: 'c.dioses', name: 'Cesar Emanuel Dioses Santos', role: 'Operario de Recepción', auth: 'LDAP / AD', status: 'Activa' },
+      { user: 'l.munoz', name: "Luis D'Alessandro Muñoz Santiago", role: 'Operario de Turno', auth: 'LDAP / AD', status: 'Activa' },
+      { user: 'a.catacora', name: 'Adriano Andre Catacora Iriarte', role: 'Jefe de Almacén', auth: 'LDAP / AD', status: 'Activa' },
+      { user: 'v.salas', name: 'Victor Manuel Salas Medina', role: 'Administrador TI', auth: 'LDAP / AD', status: 'Activa' },
+      { user: 'oper.contingencia01', name: 'Cuenta Contingencia Turno Noche', role: 'Operario de Recepción', auth: 'Local (Argon2id)', status: 'Bloqueada' }
+    ];
+
+    const reportsData = {
+      'R-01': {
+        title: 'R-01 · Tiempos de Acomodo por Turno (En recepción → Ubicado)',
+        headers: ['Turno', 'SKU Ubicados', 'Tiempo Promedio', 'Mínimo', 'Máximo', 'Cumplimiento OE-01'],
+        rows: [
+          ['Mañana (06:00 - 14:00)', '142', '06 min 18 s', '02 min 10 s', '13 min 45 s', '100 %'],
+          ['Tarde (14:00 - 22:00)', '118', '07 min 04 s', '02 min 40 s', '14 min 20 s', '100 %'],
+          ['Noche (22:00 - 06:00)', '89', '05 min 52 s', '01 min 55 s', '11 min 30 s', '100 %']
+        ]
+      },
+      'R-02': {
+        title: 'R-02 · Ocupación de Racks por Pasillo y Nivel',
+        headers: ['Pasillo / Zona', 'Libres', 'Reservadas', 'Ocupadas', 'Bloqueadas', '% Ocupación'],
+        rows: [
+          ['Pasillo 01 (Zona A)', '18', '2', '76', '4', '76.0 %'],
+          ['Pasillo 02 (Zona A)', '22', '1', '75', '2', '75.0 %'],
+          ['Pasillo 04 (Zona A)', '34', '3', '61', '2', '61.0 %'],
+          ['Pasillo 07 (Zona C)', '58', '0', '42', '0', '42.0 %']
+        ]
+      },
+      'R-03': {
+        title: 'R-03 · SKU Pendientes de Ubicación y en Zona de Espera (ZE-XX)',
+        headers: ['SKU', 'Descripción', 'Estado', 'Ubicación / Zona', 'Turno Ingreso', 'Antigüedad'],
+        rows: [
+          ['SKU-550192', 'Cemento Sol Tipo I 42.5 kg', 'En espera de ubicación', 'ZE-01', 'Mañana', '00 h 45 min'],
+          ['SKU-618304', 'Varilla Fierro Corrugado 1/2"', 'En espera de ubicación', 'ZE-02', 'Mañana', '01 h 10 min'],
+          ['SKU-330912', 'Cable Eléctrico THW 12 AWG', 'En recepción', 'PAS-03-RACK-01-NIV-03-POS-C', 'Mañana', '00 h 08 min']
+        ]
+      },
+      'R-04': {
+        title: 'R-04 · Bitácora Inmutable de Movimientos y Excepciones (RN-04)',
+        headers: ['Fecha / Hora', 'Usuario', 'SKU', 'Celda', 'Acción', 'Motivo / Medio'],
+        rows: [
+          ['25/11/2026 08:14:09', 'c.dioses', 'SKU-409821', 'PAS-04-RACK-02-NIV-01-POS-B', 'Confirmación Ubicado', 'Escáner HID'],
+          ['25/11/2026 08:09:42', 'c.dioses', 'SKU-409821', 'PAS-04-RACK-03-NIV-01-POS-A', 'Ubicación alternativa', 'Celda contigua libre NIV-01'],
+          ['25/11/2026 07:55:11', 'a.catacora', '—', 'PAS-04-RACK-02-NIV-04-POS-D', 'Bloqueo celda', 'Mantenimiento estructura']
+        ]
+      },
+      'R-05': {
+        title: 'R-05 · SKU con Datos Maestros Provisionales para Actualización en ERP (RN-05)',
+        headers: ['SKU', 'Peso Prov. (kg)', 'Dimensiones (cm)', 'Categoría Prov.', 'Registrado por', 'Fecha'],
+        rows: [
+          ['SKU-102934', '32.5 kg', '80 × 50 × 30', 'Patio de construcción', 'c.dioses', '25/11/2026 08:02'],
+          ['SKU-884120', '14.0 kg', '45 × 40 × 35', 'Ferretería', 'l.munoz', '24/11/2026 19:15']
+        ]
+      },
+      'R-06': {
+        title: 'R-06 · SKU Reclasificados por Pareto ABC (30 días) con Ubicación Desalineada (RN-02)',
+        headers: ['SKU', 'Descripción', 'Clase Anterior', 'Nueva Clase (30d)', 'Ubicación Actual', 'Zona Recomendada'],
+        rows: [
+          ['SKU-204910', 'Pintura Látex Blanco 4L', 'Clase C', 'Clase A (Top 80%)', 'PAS-08-RACK-04-NIV-02-POS-A', 'Zona A (Cerca despacho)'],
+          ['SKU-771022', 'Juego de Destornilladores x6', 'Clase A', 'Clase C (5%)', 'PAS-01-RACK-01-NIV-03-POS-B', 'Zona C (Menor rotación)']
+        ]
+      }
+    };
+
+    function init() {
+      const pills = document.getElementById('ersPills');
+      SCREENS.forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'ers-pill' + (s.id === 'P-01' ? ' active' : '');
+        b.textContent = s.label;
+        b.dataset.screen = s.id;
+        b.onclick = () => goScreen(s.id);
+        pills.appendChild(b);
+      });
+      renderRoleNav();
+      filterLookup();
+      renderRackGrid();
+      selectReport('R-01', document.querySelector('#reportSelectorList button'));
+      renderUsers();
+      startTimer();
+    }
+
+    function toggleCaptureMode() {
+      const bar = document.getElementById('ersToolbar');
+      const restore = document.getElementById('restoreErsBtn');
+      bar.classList.toggle('hidden');
+      restore.classList.toggle('visible', bar.classList.contains('hidden'));
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.getElementById('ersToolbar').classList.contains('hidden')) {
+        toggleCaptureMode();
+      }
+    });
+
+    function goScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('screen-' + screenId);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('.ers-pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.screen === screenId);
+      });
+      document.querySelectorAll('.nav-btn').forEach(n => {
+        n.classList.toggle('active', n.dataset.screen === screenId);
+      });
+    }
+
+    function renderRoleNav() {
+      const nav = document.getElementById('roleNav');
+      const allowed = ROLE_PERMISSIONS[currentRole] || [];
+      nav.innerHTML = `<span style="font-size:12px;font-weight:800;color:var(--slate-600);margin-right:4px;">MENÚ AUTORIZADO (${currentRole.toUpperCase()}):</span>`;
+      allowed.forEach(pid => {
+        const info = SCREENS.find(s => s.id === pid);
+        const btn = document.createElement('button');
+        btn.className = 'nav-btn';
+        btn.dataset.screen = pid;
+        btn.textContent = info ? info.label : pid;
+        btn.onclick = () => goScreen(pid);
+        nav.appendChild(btn);
+      });
+    }
+
+    function handleLogin() {
+      if (failedAttempts >= 5) {
+        document.getElementById('loginFeedback').innerHTML = `<div class="alert alert-red"><span>✖</span><div>Cuenta bloqueada tras 5 intentos fallidos consecutivos (RF-01). Contacte al Administrador TI (P-11).</div></div>`;
+        return;
+      }
+      const user = document.getElementById('loginUser').value.trim() || 'c.dioses';
+      currentRole = document.getElementById('loginRoleSelect').value;
+      document.getElementById('metaUser').innerHTML = `Usuario: <strong>${user}</strong>`;
+      document.getElementById('metaRole').innerHTML = `Perfil: <strong>${currentRole}</strong>`;
+      renderRoleNav();
+      const firstScreen = ROLE_PERMISSIONS[currentRole][0];
+      goScreen(firstScreen);
+    }
+
+    function simulateFailedLogin() {
+      failedAttempts = Math.min(5, failedAttempts + 1);
+      document.getElementById('failCount').textContent = failedAttempts;
+      if (failedAttempts >= 5) {
+        document.getElementById('loginFeedback').innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Cuenta bloqueada (5/5 intentos fallidos):</strong> Solo el Administrador TI puede desbloquearla en P-11.</div></div>`;
+      } else {
+        document.getElementById('loginFeedback').innerHTML = `<div class="alert alert-amber"><span>⚠</span><div>Credenciales inválidas. Intento fallido ${failedAttempts} de 5 antes de bloqueo automático.</div></div>`;
+      }
+    }
+
+    function toggleContingency() {
+      contingencyMode = !contingencyMode;
+      const banner = document.getElementById('ldapBanner');
+      if (contingencyMode) {
+        banner.className = 'alert alert-amber';
+        banner.innerHTML = `<span>⚠</span><div><strong>Modo contingencia (FA-01):</strong> LDAP no disponible. Ingreso habilitado solo con cuentas locales cifradas (Argon2id / bcrypt ≥ 12).</div>`;
+      } else {
+        banner.className = 'alert alert-green';
+        banner.innerHTML = `<span>✔</span><div>Directorio Corporativo LDAP / Active Directory: <strong>En línea</strong></div>`;
+      }
+    }
+
+    function presetSku(code) {
+      document.getElementById('skuInput').value = code;
+      scanSku();
+    }
+
+    function scanSku() {
+      const code = document.getElementById('skuInput').value.trim().toUpperCase();
+      const card = document.getElementById('skuResultCard');
+      if (code === 'SKU-999999') {
+        card.innerHTML = `
+          <h3>2. Resultado de Identificación</h3>
+          <div class="alert alert-red"><span>✖</span><div><strong>Código SKU inexistente en el maestro ERP (${code}):</strong> Ingreso rechazado e incidencia registrada en bitácora (FA-02).</div></div>
+        `;
+      } else if (code === 'SKU-102934') {
+        card.innerHTML = `
+          <h3>2. Ficha del SKU · Datos Maestros Incompletos (RN-05)</h3>
+          <div class="alert alert-amber"><span>⚠</span><div><strong>Faltan peso, dimensiones o categoría en el ERP:</strong> Complete los datos medidos en recepción. Se guardarán como provisionales sin modificar el ERP.</div></div>
+          <div class="grid-2">
+            <div class="form-group"><label>Peso medido (kg) *</label><input class="input" type="number" value="32.5" /></div>
+            <div class="form-group"><label>Categoría *</label><select class="select"><option>Patio de construcción</option><option>Acabados</option><option>Ferretería</option></select></div>
+          </div>
+          <div class="grid-4" style="grid-template-columns:repeat(3,1fr);">
+            <div class="form-group"><label>Largo (cm) *</label><input class="input" type="number" value="80" /></div>
+            <div class="form-group"><label>Ancho (cm) *</label><input class="input" type="number" value="50" /></div>
+            <div class="form-group"><label>Alto (cm) *</label><input class="input" type="number" value="30" /></div>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="goScreen('P-03')">Guardar Datos Provisionales y Calcular Ubicación →</button>
+        `;
+      } else if (code === 'SKU-774120') {
+        card.innerHTML = `
+          <h3>2. Ficha del SKU y Resultado de Identificación</h3>
+          <div class="alert alert-green"><span>✔</span><div><strong>Ubicación vigente con capacidad disponible:</strong> PAS-02-RACK-04-NIV-02-POS-A.</div></div>
+          <table>
+            <tr><th>Código SKU</th><td><strong>SKU-774120</strong></td></tr>
+            <tr><th>Descripción</th><td>Taladro Percutor Inalámbrico 20V</td></tr>
+            <tr><th>Peso / Categoría</th><td>3.2 kg · Herramientas (<span class="badge badge-blue">Clase A</span>)</td></tr>
+            <tr><th>Destino vigente</th><td><strong>PAS-02-RACK-04-NIV-02-POS-A</strong></td></tr>
+          </table>
+          <div style="margin-top:14px;">
+            <button class="btn btn-success btn-block" onclick="goScreen('P-04')">Ir Directo a Confirmación (RF-04) →</button>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          <h3>2. Ficha del SKU y Resultado de Identificación</h3>
+          <div class="alert alert-blue"><span>ℹ</span><div><strong>SKU nuevo sin historial de ubicación:</strong> Registrado en estado <strong>«En recepción»</strong>.</div></div>
+          <table>
+            <tr><th>Código SKU</th><td><strong>${code || 'SKU-409821'}</strong></td></tr>
+            <tr><th>Descripción</th><td>Porcelanato Gris Antideslizante 60x60 cm (Caja x 4 pzas)</td></tr>
+            <tr><th>Categoría / Clase ABC</th><td>Acabados · <span class="badge badge-blue">Clase A (Alta rotación)</span></td></tr>
+            <tr><th>Peso unitario / bulto</th><td><strong>28.0 kg</strong> <span class="badge badge-amber">⚠ Ítem pesado (&gt; 25 kg)</span></td></tr>
+            <tr><th>Estado actual</th><td><span class="badge badge-amber">En recepción</span></td></tr>
+          </table>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary btn-block" onclick="goScreen('P-03')">Calcular Ubicación Sugerida (RF-03) →</button>
+          </div>
+        `;
+      }
+    }
+
+    function toggleWaitZoneDemo() {
+      const norm = document.getElementById('p03NormalView');
+      const wz = document.getElementById('p03WaitZoneView');
+      const showWz = norm.style.display !== 'none';
+      norm.style.display = showWz ? 'none' : 'block';
+      wz.style.display = showWz ? 'block' : 'none';
+    }
+
+    function confirmStorage(method) {
+      const scanned = document.getElementById('rackScanInput').value.trim().toUpperCase();
+      const expected = document.getElementById('expectedCellLabel').textContent.trim();
+      const banner = document.getElementById('confirmResultBanner');
+      if (scanned !== expected) {
+        banner.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Rack distinto al sugerido (EX-02):</strong> Escaneó <code>${scanned}</code>, pero la celda reservada es <strong>${expected}</strong>. Estado sin cambios.</div></div>`;
+        return;
+      }
+      const via = method === 'button' ? 'Botón en pantalla' : 'Escáner código de barras HID';
+      banner.innerHTML = `<div class="alert alert-green"><span>✔</span><div><strong>Almacenamiento confirmado – Estado: Ubicado</strong> en <strong>${expected}</strong>. Sincronizado con todos los turnos en <strong>0.42 s</strong> (RNF-01) · Medio: ${via}.</div></div>`;
+    }
+
+    function simulateWrongRack() {
+      document.getElementById('rackScanInput').value = 'PAS-04-RACK-02-NIV-04-POS-A';
+      confirmStorage('scan');
+    }
+
+    function recalculateException() {
+      const fb = document.getElementById('exFeedback');
+      if (recalcStep < 3) {
+        recalcStep++;
+        document.getElementById('recalcBadge').textContent = `Recálculo ${recalcStep} de 3`;
+        fb.innerHTML = `<div class="alert alert-blue"><span>↻</span><div>Celda bloqueada temporalmente y excluida. Nueva celda sugerida asignada: <strong>PAS-04-RACK-03-NIV-01-POS-A</strong> (Intento ${recalcStep} de 3).</div></div>`;
+      } else {
+        fb.innerHTML = `<div class="alert alert-amber"><span>⚠</span><div><strong>Tres (03) recálculos consecutivos sin éxito (RN-04 → RN-03):</strong> El SKU pasa a <strong>ZE-01</strong> en estado <em>«En espera de ubicación»</em> y se notifica al Jefe de Almacén.</div></div>`;
+      }
+    }
+
+    function confirmAlternativeCell() {
+      const alt = document.getElementById('altCellInput').value.trim().toUpperCase();
+      const reason = document.getElementById('exReason').value.trim();
+      const fb = document.getElementById('exFeedback');
+      if (!reason) {
+        fb.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Motivo obligatorio (RN-04):</strong> Debe ingresar el motivo para declarar una ubicación alternativa.</div></div>`;
+        return;
+      }
+      if (alt.includes('NIV-03') || alt.includes('NIV-04')) {
+        fb.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Ubicación alternativa rechazada (RN-01):</strong> El SKU pesa 28 kg (&gt; 25 kg) y solo puede ubicarse en NIV-01 o NIV-02.</div></div>`;
+        return;
+      }
+      fb.innerHTML = `<div class="alert alert-green"><span>✔</span><div><strong>Ubicación alternativa aceptada (${alt}):</strong> SKU marcado como <em>«Ubicado»</em>, reserva original liberada y enviada a revisión del Jefe de Almacén (P-09).</div></div>`;
+    }
+
+    function setSearchTab(btn) {
+      document.querySelectorAll('#screen-P-06 .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function filterLookup() {
+      const q = (document.getElementById('lookupInput').value || '').toLowerCase();
+      const tbody = document.getElementById('lookupTableBody');
+      tbody.innerHTML = '';
+      lookupData.filter(item =>
+        item.sku.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q) ||
+        item.cat.toLowerCase().includes(q)
+      ).forEach(item => {
+        const badgeCls = item.status === 'Ubicado' ? 'badge-green' : 'badge-amber';
+        const icon = item.status === 'Ubicado' ? '✔' : '⏱';
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.innerHTML = `
+          <td><strong>${item.sku}</strong></td>
+          <td>${item.desc}</td>
+          <td style="font-family:Consolas,monospace;font-weight:700;">${item.loc}</td>
+          <td><span class="badge ${badgeCls}">${icon} ${item.status}</span></td>
+          <td style="font-size:12px;">${item.audit}</td>
+        `;
+        tr.onclick = () => {
+          document.getElementById('detCode').textContent = item.loc;
+          document.getElementById('detSku').innerHTML = `<strong>${item.sku}</strong>`;
+          document.getElementById('detDesc').textContent = item.desc;
+          document.getElementById('detCat').textContent = `${item.cat} · Clase ${item.abc}`;
+          document.getElementById('detParts').textContent = item.parts;
+          document.getElementById('detStatus').innerHTML = `<span class="badge ${badgeCls}">${icon} ${item.status}</span>`;
+          document.getElementById('detAudit').textContent = item.audit;
+        };
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderRackGrid() {
+      const grid = document.getElementById('rackGrid');
+      grid.innerHTML = '';
+      const levels = ['NIV-04', 'NIV-03', 'NIV-02', 'NIV-01'];
+      levels.forEach(niv => {
+        const lbl = document.createElement('div');
+        lbl.className = 'rack-level-label';
+        lbl.textContent = niv;
+        grid.appendChild(lbl);
+
+        rackCells.filter(c => c.niv === niv).forEach(cell => {
+          const box = document.createElement('button');
+          box.className = `cell-box cell-${cell.state}` + (cell.code === selectedCellId ? ' selected' : '');
+          box.innerHTML = `<div>${cell.pos} · ${cell.state.toUpperCase()}</div><div style="font-weight:400;margin-top:3px;">${cell.sku} (${cell.cap})</div>`;
+          box.onclick = () => {
+            selectedCellId = cell.code;
+            document.getElementById('cellCodeEdit').value = cell.code;
+            document.getElementById('cellStateEdit').value = cell.state.toUpperCase();
+            renderRackGrid();
+          };
+          grid.appendChild(box);
+        });
+      });
+    }
+
+    function toggleBlockSelectedCell() {
+      const reason = document.getElementById('cellReasonEdit').value.trim();
+      const fb = document.getElementById('mapFeedback');
+      const cell = rackCells.find(c => c.code === selectedCellId);
+      if (!cell) return;
+      if (cell.state !== 'bloqueada' && !reason) {
+        fb.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Motivo obligatorio (FA-03):</strong> Ingrese el motivo de mantenimiento antes de bloquear la celda.</div></div>`;
+        return;
+      }
+      cell.state = cell.state === 'bloqueada' ? 'libre' : 'bloqueada';
+      document.getElementById('cellStateEdit').value = cell.state.toUpperCase();
+      fb.innerHTML = `<div class="alert alert-green"><span>✔</span><div>Estado de <strong>${cell.code}</strong> actualizado a <strong>${cell.state.toUpperCase()}</strong> y registrado en bitácora.</div></div>`;
+      renderRackGrid();
+    }
+
+    function deleteSelectedCell() {
+      const fb = document.getElementById('mapFeedback');
+      const cell = rackCells.find(c => c.code === selectedCellId);
+      if (!cell) return;
+      if (cell.state === 'ocupada' || cell.state === 'reservada') {
+        fb.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Baja rechazada (FA-02):</strong> No se puede dar de baja una celda ${cell.state} (${cell.sku}).</div></div>`;
+        return;
+      }
+      fb.innerHTML = `<div class="alert alert-green"><span>✔</span><div>Baja lógica de celda libre <strong>${cell.code}</strong> registrada en la bitácora.</div></div>`;
+    }
+
+    function saveParams() {
+      const w = parseFloat(document.getElementById('paramWeight').value);
+      const fb = document.getElementById('paramFeedback');
+      if (isNaN(w) || w <= 0) {
+        fb.innerHTML = `<div class="alert alert-red"><span>✖</span><div><strong>Valor inválido (FA-04):</strong> El umbral debe ser numérico y mayor que cero.</div></div>`;
+        return;
+      }
+      fb.innerHTML = `<div class="alert alert-green"><span>✔</span><div><strong>Parámetros guardados:</strong> Umbral pesado = <strong>${w} kg</strong>. Aplicará a todas las sugerencias futuras y quedó auditado en bitácora.</div></div>`;
+    }
+
+    function resolveWaitZone(rowId, sku, cell) {
+      document.getElementById(rowId).remove();
+      document.getElementById('alertActionFeedback').innerHTML = `<div class="alert alert-green"><span>✔</span><div><strong>${sku} resuelto (RN-03):</strong> Celda <strong>${cell}</strong> reservada y SKU devuelto a estado <em>«En recepción»</em> para confirmación física.</div></div>`;
+    }
+
+    function reviewAlt(cellId, decision) {
+      const cls = decision === 'Conforme' ? 'badge-green' : 'badge-amber';
+      document.getElementById(cellId).innerHTML = `<span class="badge ${cls}">✔ ${decision}</span>`;
+      document.getElementById('alertActionFeedback').innerHTML = `<div class="alert alert-blue"><span>ℹ</span><div>Ubicación alternativa marcada como <strong>${decision}</strong> y registrada en bitácora (RN-04).</div></div>`;
+    }
+
+    function selectReport(repId, btnEl) {
+      document.querySelectorAll('#reportSelectorList button').forEach(b => {
+        b.className = 'btn btn-outline btn-block';
+      });
+      if (btnEl) btnEl.className = 'btn btn-dark btn-block';
+      const rep = reportsData[repId];
+      const container = document.getElementById('reportPreviewContainer');
+      let html = `<h4 style="margin-bottom:10px;color:var(--navy);">${rep.title}</h4><table><thead><tr>`;
+      rep.headers.forEach(h => html += `<th>${h}</th>`);
+      html += `</tr></thead><tbody>`;
+      rep.rows.forEach(r => {
+        html += `<tr>` + r.map(c => `<td>${c}</td>`).join('') + `</tr>`;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    function exportReport(fmt) {
+      document.getElementById('reportFeedback').innerHTML = `<div class="alert alert-green"><span>✔</span><div><strong>Reporte generado en ${fmt}:</strong> Incluye encabezado oficial con filtros aplicados, fecha/hora y usuario generador (RF-07).</div></div>`;
+    }
+
+    function renderUsers() {
+      const q = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
+      const tbody = document.getElementById('usersTableBody');
+      tbody.innerHTML = '';
+      usersList.filter(u => u.user.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)).forEach((u, idx) => {
+        const badge = u.status === 'Activa' ? 'badge-green' : 'badge-red';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${u.user}</strong></td>
+          <td>${u.name}</td>
+          <td>${u.role}</td>
+          <td>${u.auth}</td>
+          <td><span class="badge ${badge}">${u.status}</span></td>
+          <td>
+            ${u.status === 'Bloqueada'
+              ? `<button class="btn btn-success btn-sm" onclick="unlockUser(${idx})">Desbloquear</button>`
+              : `<button class="btn btn-outline btn-sm" onclick="toggleUserState(${idx})">Desactivar</button>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function unlockUser(idx) {
+      usersList[idx].status = 'Activa';
+      failedAttempts = 0;
+      document.getElementById('userAdminFeedback').innerHTML = `<div class="alert alert-green"><span>✔</span><div>Cuenta <strong>${usersList[idx].user}</strong> desbloqueada y registrada en bitácora (RF-01).</div></div>`;
+      renderUsers();
+    }
+
+    function toggleUserState(idx) {
+      usersList[idx].status = usersList[idx].status === 'Activa' ? 'Inactiva' : 'Activa';
+      renderUsers();
+    }
+
+    function addDemoUser() {
+      usersList.push({
+        user: 'op.recepcion02',
+        name: 'Operario Nuevo Turno Tarde',
+        role: 'Operario de Recepción',
+        auth: 'LDAP / AD',
+        status: 'Activa'
+      });
+      document.getElementById('userAdminFeedback').innerHTML = `<div class="alert alert-green"><span>✔</span><div>Usuario <strong>op.recepcion02</strong> creado con perfil <em>Operario de Recepción</em> y auditado en bitácora.</div></div>`;
+      renderUsers();
+    }
+
+    function startTimer() {
+      let secs = 14 * 60 + 52;
+      setInterval(() => {
+        if (secs > 0) secs--;
+        const m = String(Math.floor(secs / 60)).padStart(2, '0');
+        const s = String(secs % 60).padStart(2, '0');
+        const el = document.getElementById('reserveTimer');
+        if (el) el.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    init();
+  </script>
+</body>
+</html>
